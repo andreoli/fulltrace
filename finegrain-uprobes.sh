@@ -1,12 +1,21 @@
 #!/bin/bash
 
+symbol_has_static_table() {
+	# FIXME: Does this work if system language is not English?
+	[ -n $(objdump -t $1 | grep -qw "no symbols")$? ]
+}
+
 find_dsos() {
 	ldd $CMD | grep -Ev 'gate|vdso' | sed -e 's/(\(.*\))//' | \
 	sed -e 's|^\([^/]*\)\(.*\)$|\2|'
 }
 
 find_symbol_abs_address() {
-	echo "$(objdump -t $1 | grep "F .text" | grep -w $2 | awk '{print $1}')"
+	if symbol_has_static_table $1; then
+		ad=$(objdump -t $1 | grep "F .text" | grep -w $2 | awk '{print $1}')
+		if [ "$ad" != "" ]; then echo $ad; return; fi
+	fi
+	echo "$(objdump -T $1 | grep "F .text" | grep -w $2 | awk '{print $1}')"
 }
 
 find_start_addr() {
@@ -20,7 +29,11 @@ find_functions_invoked_by_library_function() {
 }
 
 lookup_real_symbol() {
-	objdump -t $1 | grep -E "$2\s+g\s+DF\s+.text" | awk '{print $7}'
+	if symbol_has_static_table $1; then
+		sy=$(objdump -t $1 | grep -E "$2\s+g\s+DF\s+.text" | awk '{print $7}')
+		if [ "$sy" != "" ]; then echo $sy; return; fi
+	fi
+	objdump -T $1 | grep -E "$2\s+g\s+DF\s+.text" | awk '{print $7}'
 }
 
 symbol_is_weak() {
@@ -38,14 +51,25 @@ print_symbol_info() {
 
 find_dso_owning_symbol() {
 	for d in $1; do
-		if objdump -t $d | grep -qw $2; then
+		if symbol_has_static_table $d; then
+			if objdump -t $d | grep -qw $2; then
+				echo $d
+				return
+			fi
+		fi
+		if objdump -T $d | grep -qw $2; then
 			echo $d
 			return
 		fi
 	done
 }
+
 find_dynamic_loader_symbols() {
-	objdump -t $1 | grep -E "g\s+F .text" | awk '{print $6}'
+	if symbol_has_static_table $1; then
+		sy=$(objdump -t $1 | grep -E "g\s+F .text" | awk '{print $7}')
+		if [ "$sy" != "" ]; then echo $sy; return; fi
+	fi
+	objdump -T $1 | grep -E "g\s+DF .text" | awk '{print $7}'
 }
 
 find_used_library_function_symbols() {
@@ -92,7 +116,7 @@ for s in $symbols; do
 	touch $STACK/$s
 done
 
-symbols=$(find_dynamic_loader_symbols $(echo $dsos | grep -o -E "/lib/ld\-(.*)"))
+symbols=$(find_dynamic_loader_symbols $(echo $dsos | grep -o -E "/lib(|32|64)/ld\-(.*)"))
 for s in $symbols; do
 	touch $STACK/$s
 done
