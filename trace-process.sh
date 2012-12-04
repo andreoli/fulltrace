@@ -11,6 +11,8 @@ if ! file -L $1 | grep -q ELF; then
 fi
 set --
 
+make wrapper
+
 echo "tracing $CMD"
 echo function_graph | sudo tee /sys/kernel/debug/tracing/current_tracer
 echo 2000000 | sudo tee /sys/kernel/debug/tracing/buffer_size_kb
