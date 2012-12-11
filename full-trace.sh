@@ -164,10 +164,13 @@ SHELL=bash
 BASHARG=
 TMP="/tmp"
 TRACEFILE="$TMP/trace"
+TRACEPREFIX="$TMP/trace.split"
+TRACEFILE_DECODED="$TMP/trace.decoded"
 UPROBES="$TMP/uprobes"
 TOVISIT="$TMP/tovisit"
 VISITED="$TMP/visited"
 SYMBOLS="$TMP/symbols"
+DSOPREFIX="$TMP"
 
 usage()
 {
@@ -177,10 +180,11 @@ Full process tracer (userspace, libraries, kernel)
 	OPTIONS:
 -b	Buffer size
 -d	Debug
+-h	This help
 EOF
 }
 
-options=$(getopt -o db: -l "debug,bufsize:" -n "full-trace.sh" -- "$@")
+options=$(getopt -o db:h -l "debug,bufsize:,help" -n "full-trace.sh" -- "$@")
 if [ $? -ne 0 ]; then
 	exit 1
 fi
@@ -191,6 +195,7 @@ while true; do
 	case "$1" in
 		-d|--debug) BASHARG=-xv ;;
 		-b|--bufsize) BUFSIZE=$2; shift ;;
+		-h|--help) usage; exit 0 ;;
 		(--) shift; break;;
 	esac
 	shift
@@ -283,4 +288,16 @@ write_trace $TRACEFILE $(basename $CMD)
 uprobes_off
 ftrace_reset
 
-$SHELL $BASHARG ./rewrite-addresses.sh $CMD
+nr_cpu=$(lscpu | grep ^CPU\(s\) | awk '{print $2}')
+if [[ "$nr_cpu" -gt 1 ]]; then
+	postfix="s"
+fi
+echo "splitting the trace in $nr_cpu part$postfix"
+split -n $nr_cpu $TRACEFILE $TRACEPREFIX
+
+for f in $(ls $TRACEPREFIX*); do
+	rewrite-address-split-trace $f &
+done
+wait
+
+cat $TRACEPREFIX* > $TRACEFILE_DECODED
