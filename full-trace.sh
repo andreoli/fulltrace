@@ -182,15 +182,21 @@ Full process tracer (userspace, libraries, kernel)
 -b	Buffer size
 -d	Debug
 -h	This help
+-o	Output decoding
+-t	Process tracing
+-u	Uprobes creation
 EOF
 }
 
-options=$(getopt -o db:h -l "debug,bufsize:,help" -n "full-trace.sh" -- "$@")
+options=$(getopt -o cdb:hotu -l "clean,debug,bufsize:,help,output,tracing,uprobes" -n "full-trace.sh" -- "$@")
 if [ $? -ne 0 ]; then
 	exit 1
 fi
 
 eval set -- "$options"
+do_uprobes=0
+do_tracing=0
+do_decoding=0
 
 while true; do
 	case "$1" in
@@ -198,6 +204,9 @@ while true; do
 		-d|--debug) BASHARG=-xv ;;
 		-b|--bufsize) BUFSIZE=$2; shift ;;
 		-h|--help) usage; exit 0 ;;
+		-o|--output) do_decoding=1 ;;
+		-t|--tracing) do_tracing=1 ;;
+		-u|--uprobes) do_uprobes=1 ;;
 		(--) shift; break;;
 	esac
 	shift
@@ -212,94 +221,102 @@ else
 	TRACEARGS=
 fi
 
-if ! file -L $CMDNAME | grep -q ELF; then
-	echo "$CMDNAME is not an executable."
-	exit 1
-fi
-
-file -L $CMDNAME | grep -q "not stripped"; has_static_symtable=$?
-mkdir $TOVISIT $VISITED $SYMBOLS
-
-dsos=$(find_dsos $CMDNAME)
-symbols=$(find_program_function_symbols $CMDNAME $has_static_symtable)
-for s in $symbols; do
-	touch $SYMBOLS/$s
-done
-
-symbols=$(find_used_library_function_symbols $CMDNAME $has_static_symtable)
-for s in $symbols; do
-	touch $TOVISIT/$s
-done
-
-symbols=$(find_dynamic_loader_symbols $(echo $dsos | grep -o -E "/lib(|32|64)/ld\-(.*)"))
-for s in $symbols; do
-	touch $TOVISIT/$s
-done
-
-while [[ "$(ls -A $TOVISIT 2>/dev/null)" != "" ]]; do
-	sym=$(ls $TOVISIT/* | head -n 1)
-	cp $sym $VISITED
-	mv $sym $SYMBOLS
-	sym=$(basename $sym)
-	dso=$(find_dso_owning_symbol "$dsos" $sym)
-	sym_info=$(print_symbol_info $dso $sym)
-	if symbol_is_weak "$sym_info"; then
-		addr=$(echo $sym_info | awk '{print $1}')
-		strong_sym=$(lookup_real_symbol $dso $addr)
-		if [[ $strong_sym != "" ]]; then
-			sym=$strong_sym
-		fi
+if [[ $do_uprobes == 1 ]]; then
+	if ! file -L $CMDNAME | grep -q ELF; then
+		echo "$CMDNAME is not an executable."
+		exit 1
 	fi
-	functions_called=$(find_functions_invoked_by_library_function $dso $sym)
-	for fc in $functions_called; do
-		if ! ls $VISITED | grep -q $fc; then
-			touch $TOVISIT/$fc
-		fi
+
+	file -L $CMDNAME | grep -q "not stripped"; has_static_symtable=$?
+	mkdir $TOVISIT $VISITED $SYMBOLS
+
+	dsos=$(find_dsos $CMDNAME)
+	symbols=$(find_program_function_symbols $CMDNAME $has_static_symtable)
+	for s in $symbols; do
+		touch $SYMBOLS/$s
 	done
-done
 
-for s in $(ls $SYMBOLS/*); do
-	sym=$(basename $s)
-	dso=$(find_dso_owning_symbol "$dsos $CMDNAME" $sym)
-	start_addr=$(find_start_addr $dso)
-	abs_addr=$(find_symbol_abs_address $dso $sym)
-	for a in $abs_addr; do
-		rel_addr=$(hex_sub "0x$a" $start_addr)
-		echo "p $dso:$rel_addr" >> $UPROBES
-		if [[ "$dso" == "$CMDNAME" ]]; then
-			printf "0x%x %s\n" "$rel_addr" $sym >> /tmp/p_$(basename $dso)
-		else
-			printf "0x%x %s\n" "$rel_addr" $sym >> /tmp/p_$(basename $dso | sed -ne 's/^\([[:alpha:]]\+\)\(.*\)$/\1/p')
-		fi
-
+	symbols=$(find_used_library_function_symbols $CMDNAME $has_static_symtable)
+	for s in $symbols; do
+		touch $TOVISIT/$s
 	done
-done
 
-sort -u $UPROBES > $UPROBES.sortuniq
-mv $UPROBES.sortuniq $UPROBES
+	symbols=$(find_dynamic_loader_symbols $(echo $dsos | grep -o -E "/lib(|32|64)/ld\-(.*)"))
+	for s in $symbols; do
+		touch $TOVISIT/$s
+	done
 
-echo "tracing $CMD"
-ftrace_on $BUFSIZE
-uprobes_on $UPROBES
-trace_process "$CMD"
-ftrace_off
+	while [[ "$(ls -A $TOVISIT 2>/dev/null)" != "" ]]; do
+		sym=$(ls $TOVISIT/* | head -n 1)
+		cp $sym $VISITED
+		mv $sym $SYMBOLS
+		sym=$(basename $sym)
+		dso=$(find_dso_owning_symbol "$dsos" $sym)
+		sym_info=$(print_symbol_info $dso $sym)
+		if symbol_is_weak "$sym_info"; then
+			addr=$(echo $sym_info | awk '{print $1}')
+			strong_sym=$(lookup_real_symbol $dso $addr)
+			if [[ $strong_sym != "" ]]; then
+				sym=$strong_sym
+			fi
+		fi
+		functions_called=$(find_functions_invoked_by_library_function $dso $sym)
+		for fc in $functions_called; do
+			if ! ls $VISITED | grep -q $fc; then
+				touch $TOVISIT/$fc
+			fi
+		done
+	done
 
-echo "writing $TRACEFILE"
-write_trace $TRACEFILE $(basename $CMD)
+	for s in $(ls $SYMBOLS/*); do
+		sym=$(basename $s)
+		dso=$(find_dso_owning_symbol "$dsos $CMDNAME" $sym)
+		start_addr=$(find_start_addr $dso)
+		abs_addr=$(find_symbol_abs_address $dso $sym)
+		for a in $abs_addr; do
+			rel_addr=$(hex_sub "0x$a" $start_addr)
+			echo "p $dso:$rel_addr" >> $UPROBES
+			if [[ "$dso" == "$CMDNAME" ]]; then
+				printf "0x%x %s\n" "$rel_addr" $sym >> /tmp/p_$(basename $dso)
+			else
+				printf "0x%x %s\n" "$rel_addr" $sym >> /tmp/p_$(basename $dso | sed -ne 's/^\([[:alpha:]]\+\)\(.*\)$/\1/p')
+			fi
 
-uprobes_off
-ftrace_reset
+		done
+	done
 
-nr_cpu=$(lscpu | grep ^CPU\(s\) | awk '{print $2}')
-if [[ "$nr_cpu" -gt 1 ]]; then
-	postfix="s"
+	sort -u $UPROBES > $UPROBES.sortuniq
+	mv $UPROBES.sortuniq $UPROBES
 fi
-echo "splitting the trace in $nr_cpu part$postfix"
-split -n $nr_cpu $TRACEFILE $TRACEPREFIX
 
-for f in $(ls $TRACEPREFIX*); do
-	rewrite-address-split-trace $f &
-done
-wait
+if [[ $do_tracing == 1 ]]; then
+	echo "tracing $CMD"
+	ftrace_on $BUFSIZE
+	uprobes_on $UPROBES
+	trace_process "$CMD"
+	ftrace_off
+
+	echo "writing $TRACEFILE"
+	write_trace $TRACEFILE $(basename $CMD)
+
+	uprobes_off
+	ftrace_reset
+fi
+
+if [[ $do_decoding == 1 ]]; then
+	nr_cpu=$(lscpu | grep ^CPU\(s\) | awk '{print $2}')
+	if [[ "$nr_cpu" -gt 1 ]]; then
+		postfix="s"
+	fi
+	echo "splitting the trace in $nr_cpu part$postfix"
+	split -n $nr_cpu $TRACEFILE $TRACEPREFIX
+
+	for f in $(ls $TRACEPREFIX*); do
+		rewrite-address-split-trace $f &
+	done
+	wait
+
+	cat $TRACEPREFIX* > $TRACEFILE_DECODED
+fi
 
 cat $TRACEPREFIX* > $TRACEFILE_DECODED
