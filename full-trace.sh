@@ -179,16 +179,18 @@ DSOPREFIX="$TMP"
 usage()
 {
 cat << EOF
-usage: $0 [-b bufsize] [-d] <command>
+usage: $0 [-b|--bufsize bufsize] [-c|--clean] [-d|--debug] [-h|--help]
+          [-o|--output] [-t|--trace] [-u|--uprobes] -- <command> <arg>...
+
 Full process tracer (userspace, libraries, kernel)
-	OPTIONS:
--c	Clean temporary files
--b	Buffer size
--d	Debug
--h	This help
--o	Output decoding
--t	Process tracing
--u	Uprobes creation
+OPTIONS:
+-b|--bufsize	Set the per-cpu buffer size (KB)
+-c|--clean	Clean temporary files
+-d|--debug	Debug output
+-h|--help	This help
+-o|--output	Output decoding
+-t|--trace	Process tracing
+-u|--uprobes	Uprobes creation
 EOF
 }
 
