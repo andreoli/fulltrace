@@ -137,6 +137,10 @@ trace_process() {
 
 write_trace() {
 	cat /sys/kernel/debug/tracing/trace > $1
+	sed -i -e '1,/PROCESS/ d;' $1
+	last=$(grep -nE "$2-[[:digit:]]+\s+=>" /tmp/trace | tail -n 1 | cut -f1 -d:)
+	last=$((last+1))
+	sed -i -e "$last,$ d;" $1
 }
 
 # trace decoding routines
