@@ -227,12 +227,6 @@ fi
 CMD="$@"
 CMDNAME=$(which $1)
 
-if [ "$BUFSIZE" != "" ]; then
-	TRACEARGS="-b $BUFSIZE"
-else
-	TRACEARGS=
-fi
-
 if [[ $do_uprobes == 1 ]]; then
 	if ! file -L $CMDNAME | grep -q ELF; then
 		echo "$CMDNAME is not an executable."
