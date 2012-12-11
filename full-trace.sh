@@ -139,6 +139,27 @@ write_trace() {
 	cat /sys/kernel/debug/tracing/trace > $1
 }
 
+# trace decoding routines
+
+rewrite-address-split-trace() {
+	tracefile=$1
+	dsos_addresses=$(grep "\/\* p_.* (0x.*) \*\/" $tracefile | awk '{print $4}' | sort | uniq)
+	for a in $dsos_addresses; do
+		dso=$(echo $a | cut -f1-2 -d"_")
+		if [[ ! -r $DSOPREFIX/$dso ]]; then
+			dso_file=$(ls $DSOPREFIX/$dso*)
+		else
+			dso_file=$DSOPREFIX/$dso
+		fi
+		dso_decoded_name=$(basename $dso_file)
+		offset=$(echo $a | cut -f3 -d"_" | tr -d ":")
+		symbol=$(grep $offset $dso_file | tail -n 1 | cut -f2 -d" ")
+
+		echo "dso:$dso, offset:$offset, symbol:$symbol"
+		sed -i -e "s/${dso}_${offset}:/${dso_decoded_name:2}:${symbol}/" $tracefile
+	done
+}
+
 SHELL=bash
 BASHARG=
 TMP="/tmp"
