@@ -164,6 +164,39 @@ rewrite-address-split-trace() {
 	done
 }
 
+# Filters
+EVENTS_DIR="/sys/kernel/debug/tracing/events"
+SUBSYSTEMS=$(ls -l $EVENTS_DIR | grep "^d" | awk '{ print $9 }')
+
+include_subsystems() {
+	for s in $1; do
+		echo -n "Including subsystem $s "
+		echo 1 | sudo tee $EVENTS_DIR/$s/enable
+	done
+}
+
+exclude_subsystems() {
+	for s in $1; do
+		echo -n "Excluding subsystem $s "
+		echo 0 | sudo tee $EVENTS_DIR/$s/enable
+	done
+}
+
+handle_subsystems() {
+	if [ "$ALLOWED_SUBSYS" != "" ]; then
+		EXCLUDED_SUBSYS=$SUBSYSTEMS
+		for s in ${ALLOWED_SUBSYS//,/ }; do
+			EXCLUDED_SUBSYS=$(echo $EXCLUDED_SUBSYS | sed "s/\b$s\b//g")
+		done
+		ALLOWED_SUBSYS=$(echo ${ALLOWED_SUBSYS//,/ } | sed "s/\bftrace\b//g")
+		ALLOWED_SUBSYS=$(echo ${ALLOWED_SUBSYS//,/ } | sed "s/\buprobes\b//g")
+		EXCLUDED_SUBSYS=$(echo $EXCLUDED_SUBSYS | sed "s/\bftrace\b//g")
+		EXCLUDED_SUBSYS=$(echo $EXCLUDED_SUBSYS | sed "s/\buprobes\b//g")
+		include_subsystems "${ALLOWED_SUBSYS//,/ }"
+		exclude_subsystems "$EXCLUDED_SUBSYS"
+	fi
+}
+
 SHELL=bash
 BASHARG=
 TMP="/tmp"
@@ -180,7 +213,8 @@ usage()
 {
 cat << EOF
 usage: $0 [-b|--bufsize bufsize] [-c|--clean] [-d|--debug] [-h|--help]
-          [-o|--output] [-t|--trace] [-u|--uprobes] -- <command> <arg>...
+          [-o|--output] [-t|--trace] [-u|--uprobes]
+          [-k|--ksubsys subsys1,...] -- <command> <arg>...
 
 Full process tracer (userspace, libraries, kernel)
 OPTIONS:
@@ -191,10 +225,11 @@ OPTIONS:
 -o|--output	Output decoding
 -t|--trace	Process tracing
 -u|--uprobes	Uprobes creation
+-k|--ksubsys    Enable traces for listed subsystems
 EOF
 }
 
-options=$(getopt -o cdb:hotu -l "clean,debug,bufsize:,help,output,tracing,uprobes" -n "full-trace.sh" -- "$@")
+options=$(getopt -o cdb:hotuk: -l "clean,debug,bufsize:,help,output,tracing,uprobes,ksubsys:" -n "full-trace.sh" -- "$@")
 if [ $? -ne 0 ]; then
 	exit 1
 fi
@@ -213,6 +248,7 @@ while true; do
 		-o|--output) do_decoding=1 ;;
 		-t|--tracing) do_tracing=1 ;;
 		-u|--uprobes) do_uprobes=1 ;;
+		-k|--ksubsys) ALLOWED_SUBSYS=$2; shift ;;
 		(--) shift; break;;
 	esac
 	shift
@@ -297,6 +333,7 @@ fi
 
 if [[ $do_tracing == 1 ]]; then
 	echo "tracing $CMD"
+	handle_subsystems
 	ftrace_on $BUFSIZE
 	uprobes_on $UPROBES
 	trace_process "$CMD"
