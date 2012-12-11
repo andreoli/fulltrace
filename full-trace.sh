@@ -178,6 +178,7 @@ cat << EOF
 usage: $0 [-b bufsize] [-d] <command>
 Full process tracer (userspace, libraries, kernel)
 	OPTIONS:
+-c	Clean temporary files
 -b	Buffer size
 -d	Debug
 -h	This help
@@ -193,6 +194,7 @@ eval set -- "$options"
 
 while true; do
 	case "$1" in
+		-c|--clean) cleanup $TRACEPREFIX* $TOVISIT $VISITED $SYMBOLS $UPROBES $TRACEFILE $TRACEPREFIX* /tmp/p_*; exit 0;;
 		-d|--debug) BASHARG=-xv ;;
 		-b|--bufsize) BUFSIZE=$2; shift ;;
 		-h|--help) usage; exit 0 ;;
