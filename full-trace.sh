@@ -100,6 +100,11 @@ cleanup() {
 
 SHELL=bash
 BASHARG=
+TMP="/tmp"
+UPROBES="$TMP/uprobes"
+TOVISIT="$TMP/tovisit"
+VISITED="$TMP/visited"
+SYMBOLS="$TMP/symbols"
 
 usage()
 {
@@ -128,7 +133,8 @@ while true; do
 	shift
 done
 
-CMD=$@
+CMD="$@"
+CMDNAME=$(which $1)
 
 if [ "$BUFSIZE" != "" ]; then
 	TRACEARGS="-b $BUFSIZE"
@@ -136,6 +142,71 @@ else
 	TRACEARGS=
 fi
 
-$SHELL $BASHARG ./finegrain-uprobes.sh $CMD
+if ! file -L $CMDNAME | grep -q ELF; then
+	echo "$CMDNAME is not an executable."
+	exit 1
+fi
+
+file -L $CMDNAME | grep -q "not stripped"; has_static_symtable=$?
+mkdir $TOVISIT $VISITED $SYMBOLS
+
+dsos=$(find_dsos $CMDNAME)
+symbols=$(find_program_function_symbols $CMDNAME $has_static_symtable)
+for s in $symbols; do
+	touch $SYMBOLS/$s
+done
+
+symbols=$(find_used_library_function_symbols $CMDNAME $has_static_symtable)
+for s in $symbols; do
+	touch $TOVISIT/$s
+done
+
+symbols=$(find_dynamic_loader_symbols $(echo $dsos | grep -o -E "/lib(|32|64)/ld\-(.*)"))
+for s in $symbols; do
+	touch $TOVISIT/$s
+done
+
+while [[ "$(ls -A $TOVISIT 2>/dev/null)" != "" ]]; do
+	sym=$(ls $TOVISIT/* | head -n 1)
+	cp $sym $VISITED
+	mv $sym $SYMBOLS
+	sym=$(basename $sym)
+	dso=$(find_dso_owning_symbol "$dsos" $sym)
+	sym_info=$(print_symbol_info $dso $sym)
+	if symbol_is_weak "$sym_info"; then
+		addr=$(echo $sym_info | awk '{print $1}')
+		strong_sym=$(lookup_real_symbol $dso $addr)
+		if [[ $strong_sym != "" ]]; then
+			sym=$strong_sym
+		fi
+	fi
+	functions_called=$(find_functions_invoked_by_library_function $dso $sym)
+	for fc in $functions_called; do
+		if ! ls $VISITED | grep -q $fc; then
+			touch $TOVISIT/$fc
+		fi
+	done
+done
+
+for s in $(ls $SYMBOLS/*); do
+	sym=$(basename $s)
+	dso=$(find_dso_owning_symbol "$dsos $CMDNAME" $sym)
+	start_addr=$(find_start_addr $dso)
+	abs_addr=$(find_symbol_abs_address $dso $sym)
+	for a in $abs_addr; do
+		rel_addr=$(hex_sub "0x$a" $start_addr)
+		echo "p $dso:$rel_addr" >> $UPROBES
+		if [[ "$dso" == "$CMDNAME" ]]; then
+			printf "0x%x %s\n" "$rel_addr" $sym >> /tmp/p_$(basename $dso)
+		else
+			printf "0x%x %s\n" "$rel_addr" $sym >> /tmp/p_$(basename $dso | sed -ne 's/^\([[:alpha:]]\+\)\(.*\)$/\1/p')
+		fi
+
+	done
+done
+
+sort -u $UPROBES > $UPROBES.sortuniq
+mv $UPROBES.sortuniq $UPROBES
+
 sudo $SHELL $BASHARG ./trace-process.sh $TRACEARGS $CMD
 $SHELL $BASHARG ./rewrite-addresses.sh $CMD
