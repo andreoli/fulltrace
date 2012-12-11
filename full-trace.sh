@@ -98,6 +98,47 @@ cleanup() {
 	rm -rf $@
 }
 
+# process tracing routines
+
+uprobes_on() {
+	echo | sudo tee /sys/kernel/debug/tracing/uprobe_events
+	cat $1 | sudo tee -a /sys/kernel/debug/tracing/uprobe_events
+	echo 1 | sudo tee /sys/kernel/debug/tracing/events/uprobes/enable
+}
+
+ftrace_on() {
+	echo function_graph | sudo tee /sys/kernel/debug/tracing/current_tracer
+	echo $1 | sudo tee /sys/kernel/debug/tracing/buffer_size_kb
+	echo 1 | sudo tee /sys/kernel/debug/tracing/tracing_on
+	echo | sudo tee /sys/kernel/debug/tracing/set_ftrace_pid
+	echo 1 | sudo tee /sys/kernel/debug/tracing/tracing_enabled
+}
+
+ftrace_off() {
+	echo 0 | sudo tee /sys/kernel/debug/tracing/tracing_enabled
+	echo 0 | sudo tee /sys/kernel/debug/tracing/tracing_on
+
+}
+
+uprobes_off() {
+
+	echo 0 | sudo tee /sys/kernel/debug/tracing/events/uprobes/enable
+	echo | sudo tee /sys/kernel/debug/tracing/uprobe_events
+
+}
+
+ftrace_reset() {
+	echo nop | sudo tee /sys/kernel/debug/tracing/current_tracer
+}
+
+trace_process() {
+	sudo ./wrapper $1
+}
+
+write_trace() {
+	cat /sys/kernel/debug/tracing/trace > $1
+}
+
 SHELL=bash
 BASHARG=
 TMP="/tmp"
