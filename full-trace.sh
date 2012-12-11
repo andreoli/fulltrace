@@ -142,6 +142,7 @@ write_trace() {
 SHELL=bash
 BASHARG=
 TMP="/tmp"
+TRACEFILE="$TMP/trace"
 UPROBES="$TMP/uprobes"
 TOVISIT="$TMP/tovisit"
 VISITED="$TMP/visited"
@@ -249,5 +250,16 @@ done
 sort -u $UPROBES > $UPROBES.sortuniq
 mv $UPROBES.sortuniq $UPROBES
 
-sudo $SHELL $BASHARG ./trace-process.sh $TRACEARGS $CMD
+echo "tracing $CMD"
+ftrace_on $BUFSIZE
+uprobes_on $UPROBES
+trace_process "$CMD"
+ftrace_off
+
+echo "writing $TRACEFILE"
+write_trace $TRACEFILE $(basename $CMD)
+
+uprobes_off
+ftrace_reset
+
 $SHELL $BASHARG ./rewrite-addresses.sh $CMD
