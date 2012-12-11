@@ -218,6 +218,12 @@ while true; do
 	shift
 done
 
+if [[ "$BUFSIZE" == "" ]]; then
+	nr_cpu=$(lscpu | grep ^CPU\(s\) | awk '{print $2}')
+	free=$(free -k | grep ^Mem  | awk '{print $4}')
+	BUFSIZE=$(($free / 4 / $nr_cpu))
+fi
+
 CMD="$@"
 CMDNAME=$(which $1)
 
