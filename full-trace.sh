@@ -30,6 +30,12 @@ find_functions_invoked_by_library_function() {
 		grep -v -w $2 | awk '{print $5'} | sed -e 's/<\(.*\)>/\1/'
 }
 
+find_function_exit_point() {
+	echo "disas $2" | gdb -q $1 2>/dev/null | grep -E "ret[q]" | awk '{print $1}' | \
+		cut -f2 -d"x"
+}
+
+
 lookup_real_symbol() {
 	if symbol_has_static_table $1; then
 		sy=$(objdump -t $1 | grep -E "$2\s+g\s+DF\s+.text" | awk '{print $7}')
@@ -319,11 +325,20 @@ if [[ $do_uprobes == 1 ]]; then
 			rel_addr=$(hex_sub "0x$a" $start_addr)
 			echo "p $dso:$rel_addr" >> $UPROBES
 			if [[ "$dso" == "$CMDNAME" ]]; then
-				printf "0x%x %s\n" "$rel_addr" $sym >> /tmp/p_$(basename $dso)
+				printf "0x%x %s enter\n" "$rel_addr" $sym >> /tmp/p_$(basename $dso)
 			else
-				printf "0x%x %s\n" "$rel_addr" $sym >> /tmp/p_$(basename $dso | sed -ne 's/^\([[:alpha:]]\+\)\(.*\)$/\1/p')
+				printf "0x%x %s enter\n" "$rel_addr" $sym >> /tmp/p_$(basename $dso | sed -ne 's/^\([[:alpha:]]\+\)\(.*\)$/\1/p')
 			fi
-
+		done
+		abs_addr=$(find_function_exit_point $dso $sym)
+		for a in $abs_addr; do
+			rel_addr=$(hex_sub "0x$a" $start_addr)
+			echo "p $dso:$rel_addr" >> $UPROBES
+			if [[ "$dso" == "$CMDNAME" ]]; then
+				printf "0x%x %s exit\n" "$rel_addr" $sym >> /tmp/p_$(basename $dso)
+			else
+				printf "0x%x %s exit\n" "$rel_addr" $sym >> /tmp/p_$(basename $dso | sed -ne 's/^\([[:alpha:]]\+\)\(.*\)$/\1/p')
+			fi
 		done
 	done
 
