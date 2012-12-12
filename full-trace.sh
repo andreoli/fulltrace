@@ -376,5 +376,3 @@ if [[ $do_decoding == 1 ]]; then
 
 	cat $TRACEPREFIX* > $TRACEFILE_DECODED
 fi
-
-cat $TRACEPREFIX* > $TRACEFILE_DECODED
