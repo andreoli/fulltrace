@@ -164,9 +164,10 @@ rewrite-address-split-trace() {
 		dso_decoded_name=$(basename $dso_file)
 		offset=$(echo $a | cut -f3 -d"_" | tr -d ":")
 		symbol=$(grep $offset $dso_file | tail -n 1 | cut -f2 -d" ")
+		entorex=$(grep $offset $dso_file | tail -n 1 | cut -f3 -d" ")
 
 		echo "dso:$dso, offset:$offset, symbol:$symbol"
-		sed -i -e "s/${dso}_${offset}:/${dso_decoded_name:2}:${symbol}/" $tracefile
+		sed -i -e "s/${dso}_${offset}:/${dso_decoded_name:2}:${symbol}:${entorex}/" $tracefile
 	done
 }
 
