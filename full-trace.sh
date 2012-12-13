@@ -248,7 +248,7 @@ do_decoding=0
 
 while true; do
 	case "$1" in
-		-c|--clean) cleanup $TRACEPREFIX* $TOVISIT $VISITED $SYMBOLS $UPROBES $TRACEFILE $TRACEPREFIX* /tmp/p_*; exit 0;;
+		-c|--clean) cleanup $TOVISIT $VISITED $SYMBOLS $UPROBES $TRACEFILE $TRACEPREFIX* /tmp/p_*; exit 0;;
 		-d|--debug) BASHARG=-xv ;;
 		-b|--bufsize) BUFSIZE=$2; shift ;;
 		-h|--help) usage; exit 0 ;;
