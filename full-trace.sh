@@ -171,36 +171,36 @@ rewrite-address-split-trace() {
 	done
 }
 
+# The following awk script keeps all the trace lines that:
+# - match with an uprobe event executing on the same CPU then the
+#   previous valid event (typically, the event recorded in the
+#   previous line);
+# - don't match with an uprobe event.
+#
+# The algorithm applied by awk on each line is explained more in
+# detail in the following comment.
+# The awk script uses a variable, "mark", whose purpose is to store
+# the number of the CPU where the previously analyzed event has been
+# recorded. Initially, "mark" is, by default, the empty string (this
+# is equivalent to setting mark = ""; in a BEGIN rule).
+# * if the line matches with an uprobe event:
+#   |__ if the first column of the line (CPU number) is equal to the
+#       content of "mark" (the current event and the previous have
+#       been recorded on the same CPU)
+#       OR "mark" is not a string in the format "#)" (the previous
+#       line was probably a separator and we have no terms for a
+#       comparison with the current event):
+#       |__ the line is valid, print it;
+#       |__ set "mark" to the value of the first column (we want to
+#           store the CPU number);
+# * else (the line does not match with an uprobe event):
+#   |__ print the line;
+#   |__ set "mark" to the value of the first column (the line is
+#       considered as valid, we don't want to filter out ftrace
+#       events or context switches).
 remove-spurious-uprobes() {
 	tracefile=$1
 	newname=$1-r
-	# The following awk script keeps all the trace lines that:
-	# - match with an uprobe event executing on the same CPU then the
-	#   previous valid event (typically, the event recorded in the
-	#   previous line);
-	# - don't match with an uprobe event.
-	#
-	# The algorithm applied by awk on each line is explained more in
-	# detail in the following comment.
-	# The awk script uses a variable, "mark", whose purpose is to store
-	# the number of the CPU where the previously analyzed event has been
-	# recorded. Initially, "mark" is, by default, the empty string (this
-	# is equivalent to setting mark = ""; in a BEGIN rule).
-	# * if the line matches with an uprobe event:
-	#   |__ if the first column of the line (CPU number) is equal to the
-	#       content of "mark" (the current event and the previous have
-	#       been recorded on the same CPU)
-	#       OR "mark" is not a string in the format "#)" (the previous
-	#       line was probably a separator and we have no terms for a
-	#       comparison with the current event):
-	#       |__ the line is valid, print it;
-	#       |__ set "mark" to the value of the first column (we want to
-	#           store the CPU number);
-	# * else (the line does not match with an uprobe event):
-	#   |__ print the line;
-	#   |__ set "mark" to the value of the first column (the line is
-	#       considered as valid, we don't want to filter out ftrace
-	#       events or context switches).
 	awk '{if (/[0-9])[[:blank:]]+.*\/\*.*\*\//) {if ($1 == mark || mark !~ /[0-9])/) {print $0; mark = $1;}} else {print $0; mark = $1;}}' $tracefile > $newname
 	cat $newname > $tracefile
 	rm $newname
