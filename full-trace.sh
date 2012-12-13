@@ -409,7 +409,7 @@ if [[ $do_decoding == 1 ]]; then
 		rewrite-address-split-trace $f &
 	done
 	wait
-	
+
 	for f in $(ls $TRACEPREFIX*); do
 		remove-spurious-uprobes $f &
 	done
