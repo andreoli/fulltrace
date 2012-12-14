@@ -392,7 +392,7 @@ if [[ $do_tracing == 1 ]]; then
 	ftrace_off
 
 	echo "writing $TRACEFILE"
-	write_trace $TRACEFILE $(basename $CMD)
+	write_trace $TRACEFILE $(basename $CMDNAME)
 
 	uprobes_off
 	ftrace_reset
