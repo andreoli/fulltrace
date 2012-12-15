@@ -188,18 +188,18 @@ rewrite-address-split-trace() {
 # recorded. Initially, "mark" is, by default, the empty string (this
 # is equivalent to setting mark = ""; in a BEGIN rule).
 # * if the line matches with an uprobe event:
-#   |__ if the first column of the line (CPU number) is equal to the
+#   |__ if the third column of the line (CPU number) is equal to the
 #       content of "mark" (the current event and the previous have
 #       been recorded on the same CPU)
-#       OR "mark" is not a string in the format "#)" (the previous
+#       OR "mark" is not a string in the format "#+)" (the previous
 #       line was probably a separator and we have no terms for a
 #       comparison with the current event):
 #       |__ the line is valid, print it;
-#       |__ set "mark" to the value of the first column (we want to
+#       |__ set "mark" to the value of the third column (we want to
 #           store the CPU number);
 # * else (the line does not match with an uprobe event):
 #   |__ print the line;
-#   |__ set "mark" to the value of the first column (the line is
+#   |__ set "mark" to the value of the third column (the line is
 #       considered as valid, we don't want to filter out ftrace
 #       events or context switches).
 remove-spurious-uprobes() {
