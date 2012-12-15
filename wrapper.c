@@ -58,8 +58,7 @@ int main (int argc, char **argv)
 		exit(-1);
 
 	if (fork() > 0) {
-		int fd_pid, fd_mrk;
-		char line[64];
+		int fd_pid;
 		char pid[64];
 		int s, ret;
 
@@ -71,15 +70,6 @@ int main (int argc, char **argv)
 			exit(1);
 		}
 		close(fd_pid);
-
-		fd_mrk = open(tracing_file("trace_marker"), O_WRONLY);
-		s = sprintf(line, "----------- PROCESS START -----------\n");
-		ret = write(fd_mrk, line, s);
-		if (ret == -1) {
-			printf("error!\n");
-			exit(1);
-		}
-		close(fd_mrk);
 
 		execvp(argv[1], argv+1);
 	}
