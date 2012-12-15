@@ -210,6 +210,23 @@ remove-spurious-uprobes() {
 	rm $newname
 }
 
+# The following awk-based function uses an associative array (called "entry")
+# to track the duration of userspace functions.
+# * Every time an entry event is encountered, the awk script adds to the
+#   "entry" array an element: entry[function_symbol] = absolute_timestamp.
+# * Every time an exit event is encountered, the awk script checks if the
+#   "entry" array contains a matching entry event. If a matching pair of events
+#   is found, the awk script computes the difference between the two timestamps
+#   (in a timeval_subtract() fashion). Finally, the awk script formats the
+#   computed value in a 5-digit field and adds it to the trace output.
+add-userspace-functions-duration() {
+	tracefile=$1
+	newname=$1-t
+	awk -F: '{if (/\/\*.*:.*:enter.*\*\//) {split($0, line, " "); entry[$2] = line[1];} if (/\/\*.*:.*:exit.*\*\//) {if (entry[$2]) {split($0, line, " "); split(line[1], x, "."); xsec = x[1]; xusec = x[2]; split(entry[$2], y, "."); ysec = y[1]; yusec = y[2]; if (xusec < yusec) {nsec = (yusec - xusec) / 1000000 + 1; yusec = yusec - (1000000 * nsec); ysec = ysec + nsec;} if (xusec - yusec > 1000000) {nsec = (xusec - yusec) / 1000000; yusec = yusec + (1000000 * nsec); ysec = ysec - nsec;} resultsec = xsec - ysec; resultusec = xusec - yusec; split($0, nrcpu, ")"); split($0, msg, "|"); printf "%s)   %-.5s us    |%s\n", nrcpu[1], sprintf("%.2f", resultusec), msg[3]; delete entry[$2]}} else {print $0}}' $tracefile > $newname
+	cat $newname > $tracefile
+	rm $newname
+}
+
 # Filters
 EVENTS_DIR="/sys/kernel/debug/tracing/events"
 SUBSYSTEMS=$(ls -l $EVENTS_DIR | grep "^d" | awk '{ print $9 }')
@@ -420,4 +437,9 @@ if [[ $do_decoding == 1 ]]; then
 	wait
 
 	cat $TRACEPREFIX* > $TRACEFILE_DECODED
+
+	# We cannot split the work of adding the duration of userspace
+	# functions between different threads, as corresponding entry and
+	# exit uprobe events could be located in different parts of the trace
+	add-userspace-functions-duration $TRACEFILE_DECODED
 fi
