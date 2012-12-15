@@ -114,6 +114,7 @@ uprobes_on() {
 
 ftrace_on() {
 	echo function_graph | sudo tee /sys/kernel/debug/tracing/current_tracer
+	echo funcgraph-abstime | sudo tee /sys/kernel/debug/tracing/trace_options
 	echo $1 | sudo tee /sys/kernel/debug/tracing/buffer_size_kb
 	echo 1 | sudo tee /sys/kernel/debug/tracing/tracing_on
 	echo | sudo tee /sys/kernel/debug/tracing/set_ftrace_pid
@@ -156,7 +157,7 @@ write_trace() {
 
 rewrite-address-split-trace() {
 	tracefile=$1
-	dsos_addresses=$(grep "\/\* p_.* (0x.*) \*\/" $tracefile | awk '{print $4}' | sort | uniq)
+	dsos_addresses=$(grep "\/\* p_.* (0x.*) \*\/" $tracefile | awk '{print $6}' | sort | uniq)
 	for a in $dsos_addresses; do
 		dso=$(echo $a | cut -f1-2 -d"_")
 		if [[ ! -r $DSOPREFIX/$dso ]]; then
@@ -204,7 +205,8 @@ rewrite-address-split-trace() {
 remove-spurious-uprobes() {
 	tracefile=$1
 	newname=$1-r
-	awk '{if (/[0-9])[[:blank:]]+.*\/\*.*\*\//) {if ($1 == mark || mark !~ /[0-9])/) {print $0; mark = $1;}} else {print $0; mark = $1;}}' $tracefile > $newname
+	#awk '{if (/[0-9])[[:blank:]]+.*\/\*.*\*\//) {if ($1 == mark || mark !~ /[0-9])/) {print $0; mark = $1;}} else {print $0; mark = $1;}}' $tracefile > $newname
+	awk '{if (/[0-9])[[:blank:]]+.*\/\*.*\*\//) {if ($3 == mark || mark !~ /[0-9])/) {print $0; mark = $3;}} else {print $0; mark = $3;}}' $tracefile > $newname
 	cat $newname > $tracefile
 	rm $newname
 }
