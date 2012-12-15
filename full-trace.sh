@@ -144,10 +144,10 @@ trace_process() {
 
 write_trace() {
 	cat /sys/kernel/debug/tracing/trace > $1
-	if [ "$(grep -n "PROCESS" $1 | tail -n 1 | cut -f1 -d:)" != "" ]; then
-		sed -i -e '1,/PROCESS/ d;' $1
-	fi
 	shortname=${2:0:7}
+	first=$(grep -nE "=>\s+${shortname}-[[:digit:]]+" $1 | head -n 1 | cut -f1 -d:)
+	first=$((first-2))
+	sed -i -e "1,$first d;" $1
 	last=$(grep -nE "${shortname}-[[:digit:]]+\s+=>" $1 | tail -n 1 | cut -f1 -d:)
 	last=$((last+1))
 	sed -i -e "$last,$ d;" $1
