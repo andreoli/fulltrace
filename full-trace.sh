@@ -206,7 +206,7 @@ remove-spurious-uprobes() {
 	tracefile=$1
 	newname=$1-r
 	#awk '{if (/[0-9])[[:blank:]]+.*\/\*.*\*\//) {if ($1 == mark || mark !~ /[0-9])/) {print $0; mark = $1;}} else {print $0; mark = $1;}}' $tracefile > $newname
-	awk '{if (/[0-9])[[:blank:]]+.*\/\*.*\*\//) {if ($3 == mark || mark !~ /[0-9])/) {print $0; mark = $3;}} else {print $0; mark = $3;}}' $tracefile > $newname
+	awk '{if (/[0-9]+\)[[:blank:]]+.*\/\*.*\*\//) {if ($3 == mark || mark !~ /[0-9])/) {print $0; mark = $3;}} else {print $0; mark = $3;}}' $tracefile > $newname
 	cat $newname > $tracefile
 	rm $newname
 }
