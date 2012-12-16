@@ -115,6 +115,7 @@ uprobes_on() {
 ftrace_on() {
 	echo function_graph | sudo tee /sys/kernel/debug/tracing/current_tracer
 	echo funcgraph-abstime | sudo tee /sys/kernel/debug/tracing/trace_options
+	echo funcgraph-proc | sudo tee /sys/kernel/debug/tracing/trace_options
 	echo $1 | sudo tee /sys/kernel/debug/tracing/buffer_size_kb
 	echo 1 | sudo tee /sys/kernel/debug/tracing/tracing_on
 	echo | sudo tee /sys/kernel/debug/tracing/set_ftrace_pid
@@ -157,7 +158,7 @@ write_trace() {
 
 rewrite-address-split-trace() {
 	tracefile=$1
-	dsos_addresses=$(grep "\/\* p_.* (0x.*) \*\/" $tracefile | awk '{print $6}' | sort | uniq)
+	dsos_addresses=$(grep "\/\* p_.* (0x.*) \*\/" $tracefile | awk '{print $8}' | sort | uniq)
 	for a in $dsos_addresses; do
 		dso=$(echo $a | cut -f1-2 -d"_")
 		if [[ ! -r $DSOPREFIX/$dso ]]; then
@@ -222,7 +223,7 @@ remove-spurious-uprobes() {
 add-userspace-functions-duration() {
 	tracefile=$1
 	newname=$1-t
-	awk -F: '{if (/\/\*.*:.*:enter.*\*\//) {split($0, line, " "); entry[$2] = line[1];} if (/\/\*.*:.*:exit.*\*\//) {if (entry[$2]) {split($0, line, " "); split(line[1], x, "."); xsec = x[1]; xusec = x[2]; split(entry[$2], y, "."); ysec = y[1]; yusec = y[2]; if (xusec < yusec) {nsec = (yusec - xusec) / 1000000 + 1; yusec = yusec - (1000000 * nsec); ysec = ysec + nsec;} if (xusec - yusec > 1000000) {nsec = (xusec - yusec) / 1000000; yusec = yusec + (1000000 * nsec); ysec = ysec - nsec;} resultsec = xsec - ysec; resultusec = xusec - yusec; split($0, nrcpu, ")"); split($0, msg, "|"); printf "%s)   %-5.5s us    |%s\n", nrcpu[1], sprintf("%.2f", resultusec), msg[3]; delete entry[$2]}} else {print $0}}' $tracefile > $newname
+	awk -F: '{if (/\/\*.*:.*:enter.*\*\//) {split($0, line, " "); entry[$2] = line[1];} if (/\/\*.*:.*:exit.*\*\//) {if (entry[$2]) {split($0, line, " "); split(line[1], x, "."); xsec = x[1]; xusec = x[2]; split(entry[$2], y, "."); ysec = y[1]; yusec = y[2]; if (xusec < yusec) {nsec = (yusec - xusec) / 1000000 + 1; yusec = yusec - (1000000 * nsec); ysec = ysec + nsec;} if (xusec - yusec > 1000000) {nsec = (xusec - yusec) / 1000000; yusec = yusec + (1000000 * nsec); ysec = ysec - nsec;} resultsec = xsec - ysec; resultusec = xusec - yusec; split($0, msg, "|"); printf "%s|%s|   %-5.5s us    |%s\n", msg[1], msg[2], sprintf("%.2f", resultusec), msg[4]; delete entry[$2]}} else {print $0}}' $tracefile > $newname
 	cat $newname > $tracefile
 	rm $newname
 }
