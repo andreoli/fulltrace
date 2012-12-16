@@ -188,19 +188,36 @@ remove-spurious-uprobes() {
 	rm $newname
 }
 
-# The following awk-based function uses an associative array (called "entry")
-# to track the duration of userspace functions.
-# * Every time an entry event is encountered, the awk script adds to the
-#   "entry" array an element: entry[function_symbol] = absolute_timestamp.
-# * Every time an exit event is encountered, the awk script checks if the
-#   "entry" array contains a matching entry event. If a matching pair of events
-#   is found, the awk script computes the difference between the two timestamps
-#   (in a timeval_subtract() fashion). Finally, the awk script formats the
-#   computed value in a 5-digit field and adds it to the trace output.
+# The following awk-based function computes the duration of userspace functions
+# and adds it to the trace output.
+#
+# The awk script uses two associative arrays to track the recursion level of
+# entry-exit event pairs ("level") and store the absolute timestamp of entry
+# uprobe events ("entry"). Initially, both arrays are empty.
+# The access key of both the associative arrays always contain the kernel PID
+# of the process that executed the action, so that the function can correctly
+# separate events from different threads.
+# The algorithm applied by awk on each line is explained in more detail in the
+# following comment.
+# * if the line is an entry uprobe event:
+#   |__ increase the recursion level of the symbol for the given PID
+#       (level[symbol:pid]++);
+#   |__ store the timestamp for the call of that level
+#       (entry[symbol:pid:level[symbol:pid]] = absolute_timestamp);
+# * if the line is an exit uprobe event:
+#   |__ if the function symbol has a valid recursion level (> 0):
+#       |__ get the matching entry event timestamp according to the recursion
+#           level of the symbol and the PID;
+#       |__ compute the difference between the two timestamps (in a
+#           timeval_subtract() fashion);
+#       |__ format the computed value in a 5-digit field and print it into the
+#           line of the trace output;
+#       |__ decrease the recursion level and delete the "entry" element for
+#           that symbol and recursion level ("pop" from the stack).
 add-userspace-functions-duration() {
 	tracefile=$1
 	newname=$1-t
-	awk -F: '{if (/\/\*.*:.*:enter.*\*\//) {split($0, line, " "); entry[$2] = line[1];} if (/\/\*.*:.*:exit.*\*\//) {if (entry[$2]) {split($0, line, " "); split(line[1], x, "."); xsec = x[1]; xusec = x[2]; split(entry[$2], y, "."); ysec = y[1]; yusec = y[2]; if (xusec < yusec) {nsec = (yusec - xusec) / 1000000 + 1; yusec = yusec - (1000000 * nsec); ysec = ysec + nsec;} if (xusec - yusec > 1000000) {nsec = (xusec - yusec) / 1000000; yusec = yusec + (1000000 * nsec); ysec = ysec - nsec;} resultsec = xsec - ysec; resultusec = xusec - yusec; split($0, msg, "|"); printf "%s|%s|   %-5.5s us    |%s\n", msg[1], msg[2], sprintf("%.2f", resultusec), msg[4]; delete entry[$2]}} else {print $0}}' $tracefile > $newname
+	awk -F: '{if (/\/\*.*:.*:enter.*\*\//) {split($0, line, " "); split(line[4], id, "-"); level[$2":"id[2]]++; entry[$2":"id[2]":"level[$2":"id[2]]] = line[1];} if (/\/\*.*:.*:exit.*\*\//) {if (level[$2":"id[2]]) {split($0, line, " "); split(line[1], x, "."); xsec = x[1]; xusec = x[2]; split(entry[$2":"id[2]":"level[$2":"id[2]]], y, "."); ysec = y[1]; yusec = y[2]; if (xusec < yusec) {nsec = (yusec - xusec) / 1000000 + 1; yusec = yusec - (1000000 * nsec); ysec = ysec + nsec;} if (xusec - yusec > 1000000) {nsec = (xusec - yusec) / 1000000; yusec = yusec + (1000000 * nsec); ysec = ysec - nsec;} resultsec = xsec - ysec; resultusec = xusec - yusec; split($0, msg, "|"); printf "%s|%s|   %-5.5s us    |%s (started from %s at %s)\n", msg[1], msg[2], sprintf("%.2f", resultusec), msg[4], id[2], entry[$2":"id[2]":"level[$2":"id[2]]]; delete entry[$2":"id[2]":"level[$2":"id[2]]]; level[$2":"id[2]]--;}} else {print $0}}' $tracefile > $newname
 	cat $newname > $tracefile
 	rm $newname
 }
