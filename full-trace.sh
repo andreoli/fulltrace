@@ -177,36 +177,13 @@ rewrite-address-split-trace() {
 }
 
 # The following awk script keeps all the trace lines that:
-# - match with an uprobe event executing on the same CPU then the
-#   previous valid event (typically, the event recorded in the
-#   previous line);
-# - don't match with an uprobe event.
-#
-# The algorithm applied by awk on each line is explained more in
-# detail in the following comment.
-# The awk script uses a variable, "mark", whose purpose is to store
-# the number of the CPU where the previously analyzed event has been
-# recorded. Initially, "mark" is, by default, the empty string (this
-# is equivalent to setting mark = ""; in a BEGIN rule).
-# * if the line matches with an uprobe event:
-#   |__ if the third column of the line (CPU number) is equal to the
-#       content of "mark" (the current event and the previous have
-#       been recorded on the same CPU)
-#       OR "mark" is not a string in the format "#+)" (the previous
-#       line was probably a separator and we have no terms for a
-#       comparison with the current event):
-#       |__ the line is valid, print it;
-#       |__ set "mark" to the value of the third column (we want to
-#           store the CPU number);
-# * else (the line does not match with an uprobe event):
-#   |__ print the line;
-#   |__ set "mark" to the value of the third column (the line is
-#       considered as valid, we don't want to filter out ftrace
-#       events or context switches).
+# - don't match with an uprobe event;
+# - match with an uprobe event and have the process basename as process ID.
 remove-spurious-uprobes() {
 	tracefile=$1
+	shortname=${2:0:7}
 	newname=$1-r
-	awk '{if (/[0-9]+\)[[:blank:]]+.*\/\*.*\*\//) {if ($3 == mark || mark !~ /[0-9])/) {print $0; mark = $3;}} else {print $0; mark = $3;}}' $tracefile > $newname
+	awk -v name=$shortname '{if (/[0-9]+\)[[:blank:]]+.*\/\*.*\*\//) {split($4, id, "-"); if (id[1] == name) {print $0}} else {print $0}}' $tracefile > $newname
 	cat $newname > $tracefile
 	rm $newname
 }
@@ -433,7 +410,7 @@ if [[ $do_decoding == 1 ]]; then
 	wait
 
 	for f in $(ls $TRACEPREFIX*); do
-		remove-spurious-uprobes $f &
+		remove-spurious-uprobes $f $(basename $CMDNAME) &
 	done
 	wait
 
