@@ -222,7 +222,7 @@ remove-spurious-uprobes() {
 add-userspace-functions-duration() {
 	tracefile=$1
 	newname=$1-t
-	awk -F: '{if (/\/\*.*:.*:enter.*\*\//) {split($0, line, " "); entry[$2] = line[1];} if (/\/\*.*:.*:exit.*\*\//) {if (entry[$2]) {split($0, line, " "); split(line[1], x, "."); xsec = x[1]; xusec = x[2]; split(entry[$2], y, "."); ysec = y[1]; yusec = y[2]; if (xusec < yusec) {nsec = (yusec - xusec) / 1000000 + 1; yusec = yusec - (1000000 * nsec); ysec = ysec + nsec;} if (xusec - yusec > 1000000) {nsec = (xusec - yusec) / 1000000; yusec = yusec + (1000000 * nsec); ysec = ysec - nsec;} resultsec = xsec - ysec; resultusec = xusec - yusec; split($0, nrcpu, ")"); split($0, msg, "|"); printf "%s)   %-.5s us    |%s\n", nrcpu[1], sprintf("%.2f", resultusec), msg[3]; delete entry[$2]}} else {print $0}}' $tracefile > $newname
+	awk -F: '{if (/\/\*.*:.*:enter.*\*\//) {split($0, line, " "); entry[$2] = line[1];} if (/\/\*.*:.*:exit.*\*\//) {if (entry[$2]) {split($0, line, " "); split(line[1], x, "."); xsec = x[1]; xusec = x[2]; split(entry[$2], y, "."); ysec = y[1]; yusec = y[2]; if (xusec < yusec) {nsec = (yusec - xusec) / 1000000 + 1; yusec = yusec - (1000000 * nsec); ysec = ysec + nsec;} if (xusec - yusec > 1000000) {nsec = (xusec - yusec) / 1000000; yusec = yusec + (1000000 * nsec); ysec = ysec - nsec;} resultsec = xsec - ysec; resultusec = xusec - yusec; split($0, nrcpu, ")"); split($0, msg, "|"); printf "%s)   %-5.5s us    |%s\n", nrcpu[1], sprintf("%.2f", resultusec), msg[3]; delete entry[$2]}} else {print $0}}' $tracefile > $newname
 	cat $newname > $tracefile
 	rm $newname
 }
