@@ -421,6 +421,8 @@ if [[ $do_decoding == 1 ]]; then
 	echo "splitting the trace in $nr_cpu part$postfix"
 	split -n $nr_cpu $TRACEFILE $TRACEPREFIX
 
+	trap "killall full-trace.sh" SIGINT SIGTERM
+
 	for f in $(ls $TRACEPREFIX*); do
 		rewrite-address-split-trace $f &
 	done
