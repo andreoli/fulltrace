@@ -419,7 +419,9 @@ if [[ $do_decoding == 1 ]]; then
 		postfix="s"
 	fi
 	echo "splitting the trace in $nr_cpu part$postfix"
-	split -n $nr_cpu $TRACEFILE $TRACEPREFIX
+	total_lines=$(wc -l < $TRACEFILE)
+	partial_lines=$(($total_lines/$nr_cpu+1))
+	split -l $partial_lines $TRACEFILE $TRACEPREFIX
 
 	trap "killall full-trace.sh" SIGINT SIGTERM
 
