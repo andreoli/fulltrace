@@ -108,7 +108,7 @@ cleanup() {
 
 uprobes_on() {
 	echo | sudo tee /sys/kernel/debug/tracing/uprobe_events
-	cat $1 | sudo tee -a /sys/kernel/debug/tracing/uprobe_events
+	cat $1 | while read; do echo $REPLY | sudo tee -a /sys/kernel/debug/tracing/uprobe_events ; done
 	echo 1 | sudo tee /sys/kernel/debug/tracing/events/uprobes/enable
 }
 
