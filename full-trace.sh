@@ -312,10 +312,16 @@ while true; do
 	shift
 done
 
+
 if [[ "$BUFSIZE" == "" ]]; then
-	nr_cpu=$(lscpu | grep ^CPU\(s\) | awk '{print $2}')
+	
+	# The interval in /sys/devices/systen/cpu/possible may not start from zero, so I calculate it
+	last_possible_cpu=$(cat /sys/devices/system/cpu/possible | cut -f 2 -d "-")
+	first_possible_cpu=$(cat /sys/devices/system/cpu/possible | cut -f 1 -d "-")
+	nr_possible_cpu=$(( last_possible_cpu - first_possible_cpu + 1 ))
+	
 	free=$(free -k | grep ^Mem  | awk '{print $4}')
-	BUFSIZE=$(($free / 4 / $nr_cpu))
+	BUFSIZE=$(($free / 4 / $nr_possible_cpu))
 fi
 
 CMD="$@"
