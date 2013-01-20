@@ -148,10 +148,27 @@ write_trace() {
 	shortname=${2:0:7}
 	first=$(grep -nE "=>\s+${shortname}-[[:digit:]]+" $1 | head -n 1 | cut -f1 -d:)
 	first=$((first-2))
-	sed -i -e "1,$first d;" $1
 	last=$(grep -nE "${shortname}-[[:digit:]]+\s+=>" $1 | tail -n 1 | cut -f1 -d:)
-	last=$((last+1))
-	sed -i -e "$last,$ d;" $1
+	last=$((last+2))
+	# If a context switch out has been found but it happened before
+	# the first context switch in, do not trim the trace
+	if (( $last <= $first )); then
+		return
+	fi
+	# Trim the trace at its beginning only if the index of the first
+	# context switch in is positive (in the other case, the trace
+	# begins "in medias res")
+	if (( $first > 0 )); then
+		sed -i -e "1,$first d;" $1
+		# We know that we trimmed the trace output until the line
+		# whose index is kept in the "first" variable: compute the
+		# new position of the last context switch out
+		last=$((last-first))
+	fi
+	# If a context switch out has been found, trim the tail of the trace
+	if (( $last > 2 )); then
+		sed -i -e "$last,$ d;" $1
+	fi
 }
 
 # trace decoding routines
