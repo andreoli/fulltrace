@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash 
 
 # DL table parsing routines
 
@@ -144,7 +144,7 @@ trace_process() {
 }
 
 write_trace() {
-	cat /sys/kernel/debug/tracing/trace > $1
+	sudo cat /sys/kernel/debug/tracing/trace > $1
 	shortname=${2:0:7}
 	first=$(grep -nE "=>\s+${shortname}-[[:digit:]]+" $1 | head -n 1 | cut -f1 -d:)
 	first=$((first-2))
@@ -241,7 +241,7 @@ add-userspace-functions-duration() {
 
 # Filters
 EVENTS_DIR="/sys/kernel/debug/tracing/events"
-SUBSYSTEMS=$(ls -l $EVENTS_DIR | grep "^d" | awk '{ print $9 }')
+SUBSYSTEMS=$(sudo ls -l $EVENTS_DIR | grep "^d" | awk '{ print $9 }')
 
 include_subsystems() {
 	for s in $1; do
@@ -308,6 +308,8 @@ options=$(getopt -o cdb:hotuk: -l "clean,debug,bufsize:,help,output,tracing,upro
 if [ $? -ne 0 ]; then
 	exit 1
 fi
+
+sudo -v
 
 eval set -- "$options"
 do_uprobes=0
