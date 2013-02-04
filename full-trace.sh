@@ -108,8 +108,15 @@ cleanup() {
 
 uprobes_on() {
 	echo | sudo tee /sys/kernel/debug/tracing/uprobe_events
-	cat $1 | while read; do echo $REPLY | sudo tee -a /sys/kernel/debug/tracing/uprobe_events ; done
-	echo 1 | sudo tee /sys/kernel/debug/tracing/events/uprobes/enable
+	if [ -f $1 ]; then
+		cat $1 | while read; do echo $REPLY | \
+		sudo tee -a /sys/kernel/debug/tracing/uprobe_events ; done
+	else
+		echo "WARN: no uprobes, tracing kernel-space functions only"
+	fi
+	if [ -d /sys/kernel/debug/tracing/events/uprobes ]; then
+		echo 1 | sudo tee /sys/kernel/debug/tracing/events/uprobes/enable
+	fi
 }
 
 ftrace_on() {
@@ -130,7 +137,9 @@ ftrace_off() {
 
 uprobes_off() {
 
-	echo 0 | sudo tee /sys/kernel/debug/tracing/events/uprobes/enable
+	if [ -d /sys/kernel/debug/tracing/events/uprobes ]; then
+		echo 0 | sudo tee /sys/kernel/debug/tracing/events/uprobes/enable
+	fi
 	echo | sudo tee /sys/kernel/debug/tracing/uprobe_events
 
 }
