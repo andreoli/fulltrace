@@ -209,7 +209,17 @@ remove-spurious-uprobes() {
 	tracefile=$1
 	shortname=${2:0:7}
 	newname=$1-r
-	awk -v name=$shortname '{if (/[0-9]+\)[[:blank:]]+.*\/\*.*\*\//) {split($4, id, "-"); if (id[1] == name) {print $0}} else {print $0}}' $tracefile > $newname
+	awk -v name=$shortname '{
+		if ( /[0-9]+\)[[:blank:]]+.*\/\*.*\*\/ / ) {
+			split($4, id, "-"); 
+			if (id[1] == name) {
+				print $0
+			}
+		} 
+		else {
+			print $0
+		}
+	}' $tracefile > $newname
 	cat $newname > $tracefile
 	rm $newname
 }
@@ -243,7 +253,44 @@ remove-spurious-uprobes() {
 add-userspace-functions-duration() {
 	tracefile=$1
 	newname=$1-t
-	awk -F: '{if (/\/\*.*:.*:enter.*\*\//) {split($0, line, " "); split(line[4], id, "-"); level[$2":"id[2]]++; entry[$2":"id[2]":"level[$2":"id[2]]] = line[1];} if (/\/\*.*:.*:exit.*\*\//) {split($0, line, " "); split(line[4], id, "-"); if (level[$2":"id[2]]) {split(line[1], x, "."); xsec = x[1]; xusec = x[2]; split(entry[$2":"id[2]":"level[$2":"id[2]]], y, "."); ysec = y[1]; yusec = y[2]; if (xusec < yusec) {nsec = (yusec - xusec) / 1000000 + 1; yusec = yusec - (1000000 * nsec); ysec = ysec + nsec;} if (xusec - yusec > 1000000) {nsec = (xusec - yusec) / 1000000; yusec = yusec + (1000000 * nsec); ysec = ysec - nsec;} resultsec = xsec - ysec; resultusec = xusec - yusec; split($0, msg, "|"); printf "%s|%s|   %-5.5s us    |%s\n", msg[1], msg[2], sprintf("%.2f", resultusec), msg[4]; delete entry[$2":"id[2]":"level[$2":"id[2]]]; level[$2":"id[2]]--;}} else {print $0}}' $tracefile > $newname
+	awk -F: '{
+		if ( /\/\*.*:.*:enter.*\*\/ / ) {
+			split($0, line, " "); 
+			split(line[4], id, "-"); 
+			level[$2":"id[2]]++; 
+			entry[$2":"id[2]":"level[$2":"id[2]]] = line[1];
+		} 
+		if ( /\/\*.*:.*:exit.*\*\/ / ) {
+			split($0, line, " "); 
+			split(line[4], id, "-"); 
+			if (level[$2":"id[2]]) {
+				split(line[1], x, "."); 
+				xsec = x[1]; xusec = x[2]; 
+				split(entry[$2":"id[2]":"level[$2":"id[2]]], y, "."); 
+				ysec = y[1]; 
+				yusec = y[2]; 
+				if (xusec < yusec) {
+					nsec = (yusec - xusec) / 1000000 + 1; 
+					yusec = yusec - (1000000 * nsec); 
+					ysec = ysec + nsec;
+				} 
+				if (xusec - yusec > 1000000) {
+					nsec = (xusec - yusec) / 1000000;
+					yusec = yusec + (1000000 * nsec); 
+					ysec = ysec - nsec;
+				} 
+				resultsec = xsec - ysec; 
+				resultusec = xusec - yusec; 
+				split($0, msg, "|"); 
+				printf "%s|%s|   %-5.5s us    |%s\n", msg[1], msg[2], sprintf("%.2f", resultusec), msg[4]; 
+				delete entry[$2":"id[2]":"level[$2":"id[2]]]; 
+				level[$2":"id[2]]--;
+			}
+		} 
+		else {
+			print $0
+		}
+	}' $tracefile > $newname
 	cat $newname > $tracefile
 	rm $newname
 }
