@@ -399,6 +399,11 @@ if [[ "$BUFSIZE" == "" ]]; then
 	BUFSIZE=$(($free / 4 / $nr_possible_cpu))
 fi
 
+if [[ "$@" == "" ]]; then
+	echo "fatal: missing command name"
+	usage
+	exit 0
+fi
 CMD="$@"
 CMDNAME=$(which $1)
 
