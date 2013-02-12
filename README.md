@@ -8,27 +8,27 @@ In an attempt to restrict the tracing activity to the bare execution of the user
 
 Table of contents:
 
-1. [Prerequisites](#prereq)
-2. [Configuration](#config)
-3. [Command-line interface](#cmdline)
-4. [Usage examples](#usage)
-5. [Output file](#output)
+1. [Prerequisites](#prerequisites)
+2. [Configuration](#configuration)
+3. [Command-line interface](#command-line-interface)
+4. [Usage examples](#usage-examples)
+5. [Output file](#output-file)
 6. [Author](#author)
 
-Prerequisites<a id="prereq"></a>
+Prerequisites
 -------------
 
 * fulltrace relies on a Linux kernel compiled with its built-in tracing subsystem (ftrace), the function\_graph tracer and transparent user-space probes. In more detail, the following kernel configuration options and their dependencies must be set as enabled (=y): FTRACE, TRACING\_SUPPORT, UPROBES, UPROBE\_EVENT, FUNCTION\_GRAPH\_TRACER.
 * fulltrace also needs the `objdump`, `readelf` and `ldd` executables to be installed.
 * As it is necessary to compile the wrapper program, the `gcc` compiler, the `ld` linker and the `make` utility must be available.
 
-Configuration<a id="config"></a>
+Configuration
 -------------
 
 Before starting to use the full-trace.sh script, the wrapper program needs to be compiled. It is necessary that the user issues the following command inside the `/fulltrace` directory:  
 `$ make`
 
-Command-line interface<a id="cmdline"></a>
+Command-line interface
 ----------------------
 
 In its full-trace.sh main script, fulltrace provides a straight-forward command-line interface to its features. Details about its usage can be printed by running it with its `-h` option.
@@ -52,7 +52,7 @@ OPTIONS:
 -k|--ksubsys&#9;Enable traces for listed subsystems
 </pre>
 
-Usage examples<a id="usage"></a>
+Usage examples
 --------------
 
 The user, to begin with, might want to obtain a trace from scratch; it is then necessary for the fulltrace script to perform the following steps:
@@ -78,9 +78,13 @@ This kind of usage is convenient when:
 Use the following command line to **generate and plant uprobes** for a program.  
 `$ ./full-trace.sh -u -- <executable_name> [executable_arguments]`  
 This next command line will trace the execution of a program **using an already generated set of userspace probes**.  
-`$ ./full-trace.sh -to -- <executable_name> [executable_arguments]`  
+`$ ./full-trace.sh -to -- <executable_name> [executable_arguments]`
 
-Output file<a id="output"></a>
+By default, the total amount of memory assigned to the ftrace subsystem as a tracing buffer is 1/4 of the currently available memory. To change this behavior, the user may use the `-b` option.  
+Use the following command line to **specify the per-CPU tracing buffer** to be assigned to the ftrace subsystem. In this example, a buffer of 1MB will be assigned to each CPU. Note that the value is expressed in KB (1MB = 1024 KB).  
+`$ ./full-trace.sh -uto -b 1024 -- <executable_name> [executable_arguments]`
+
+Output file
 -----------
 
 The format of the output file is based on the classic function\_graph provided by ftrace, that shows a call graph of the traced functions. The ftrace kernel subsystem if configured by fulltrace to include, for each event:
@@ -91,7 +95,7 @@ The format of the output file is based on the classic function\_graph provided b
 
 The basic ftrace output is improved by fulltrace to show, along with the execution latency of kernel functions, the duration of userspace and library functions.
 
-Author<a id="author"></a>
+Author
 ------
 
 Please address any bugreport or comment to the author:  
