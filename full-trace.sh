@@ -104,6 +104,41 @@ cleanup() {
 	rm -rf $@
 }
 
+check_config() {
+	echo "checking kernel configuration"
+	if [ -f /proc/config.gz ]; then
+		zcat /proc/config.gz > $CONFIGFILE
+	else
+		if [ -f /boot/config-$(uname -r) ]; then
+			cat /boot/config-$(uname -r) > $CONFIGFILE
+		fi
+	fi
+	if [ -f $CONFIGFILE ]; then
+		for opt in ${CONFIGOPTS[*]}; do
+			if [ $(grep -q "^CONFIG_$opt=y" $CONFIGFILE)$? -ne 0 ]; then
+				CONFIG_FAILURE=1
+				echo "FATAL: CONFIG_$opt not enabled"
+			fi
+		done
+		if [[ "$CONFIG_FAILURE" != "" ]]; then
+			exit 1
+		fi
+	else
+		echo "FATAL: no kernel configuration found for $(uname -r)"
+		exit 1
+	fi
+}
+
+check_uprobes() {
+	if sudo test ! -f /sys/kernel/debug/tracing/uprobe_events; then
+		echo "WARNING: no uprobes subsystem found"
+		if [[ $ignore_config == 1 ]]; then
+			echo "         forcing kernel configuration check"
+			ignore_config=0
+		fi
+	fi
+}
+
 # process tracing routines
 
 uprobes_on() {
@@ -333,6 +368,8 @@ handle_subsystems() {
 SHELL=bash
 BASHARG=
 TMP="/tmp"
+CONFIGFILE="$TMP/temp_config"
+CONFIGOPTS=('UPROBES' 'FTRACE' 'TRACING_SUPPORT' 'UPROBE_EVENT' 'FUNCTION_GRAPH_TRACER')
 TRACEFILE="$TMP/trace"
 TRACEPREFIX="$TMP/trace.split"
 TRACEFILE_DECODED="$TMP/trace.decoded"
@@ -347,7 +384,8 @@ usage()
 cat << EOF
 usage: $0 [-b|--bufsize bufsize] [-c|--clean] [-d|--debug] [-h|--help]
           [-o|--output] [-t|--trace] [-u|--uprobes]
-          [-k|--ksubsys subsys1,...] -- <command> <arg>...
+          [-k|--ksubsys subsys1,...] [-i|--i-config]
+          -- <command> <arg>...
 
 Full process tracer (userspace, libraries, kernel)
 OPTIONS:
@@ -359,10 +397,11 @@ OPTIONS:
 -t|--trace	Process tracing
 -u|--uprobes	Uprobes creation
 -k|--ksubsys    Enable traces for listed subsystems
+-i|--i-config	Ignore kernel configuration check
 EOF
 }
 
-options=$(getopt -o cdb:hotuk: -l "clean,debug,bufsize:,help,output,tracing,uprobes,ksubsys:" -n "full-trace.sh" -- "$@")
+options=$(getopt -o cdb:hotuk:i -l "clean,debug,bufsize:,help,output,tracing,uprobes,ksubsys:,i-config" -n "full-trace.sh" -- "$@")
 if [ $? -ne 0 ]; then
 	exit 1
 fi
@@ -373,10 +412,11 @@ eval set -- "$options"
 do_uprobes=0
 do_tracing=0
 do_decoding=0
+ignore_config=0
 
 while true; do
 	case "$1" in
-		-c|--clean) cleanup $TOVISIT $VISITED $SYMBOLS $UPROBES $TRACEFILE $TRACEPREFIX* /tmp/p_*; exit 0;;
+		-c|--clean) cleanup $TOVISIT $VISITED $SYMBOLS $UPROBES $CONFIGFILE $TRACEFILE $TRACEPREFIX* /tmp/p_*; exit 0;;
 		-d|--debug) BASHARG=-xv ;;
 		-b|--bufsize) BUFSIZE=$2; shift ;;
 		-h|--help) usage; exit 0 ;;
@@ -384,6 +424,7 @@ while true; do
 		-t|--tracing) do_tracing=1 ;;
 		-u|--uprobes) do_uprobes=1 ;;
 		-k|--ksubsys) ALLOWED_SUBSYS=$2; shift ;;
+		-i|--i-config) ignore_config=1 ;;
 		(--) shift; break;;
 	esac
 	shift
@@ -408,6 +449,11 @@ if [[ "$@" == "" ]]; then
 fi
 CMD="$@"
 CMDNAME=$(which $1)
+
+check_uprobes
+if [[ $ignore_config == 0 ]]; then
+	check_config
+fi
 
 if [[ $do_uprobes == 1 ]]; then
 	if ! file -L $CMDNAME | grep -q ELF; then
