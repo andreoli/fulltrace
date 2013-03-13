@@ -52,22 +52,29 @@ const char *tracing_file(const char *file_name)
 	return trace_file;
 }
 
+void die (int fd, int exit_val)
+{
+	close(fd);
+	exit(exit_val);
+}
+
 int main (int argc, char **argv)
 {
-	if (argc < 1)
+	if (argc < 2)
 		exit(-1);
 
 	if (fork() > 0) {
 		int fd_pid;
 		char pid[64];
-		int s, ret;
+		size_t s;
+		ssize_t ret;
 
 		fd_pid = open(tracing_file("set_ftrace_pid"), O_WRONLY);
 		s = sprintf(pid, "%d\n", getpid());
-		ret = write(fd_pid, pid, s);
+		ret = write(fd_pid, (void *)pid, s);
 		if (ret == -1) {
-			printf("error!\n");
-			exit(1);
+			perror("write fd_pid");
+			die(fd_pid, 1);
 		}
 		close(fd_pid);
 
