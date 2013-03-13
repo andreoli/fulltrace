@@ -169,7 +169,7 @@ ftrace_on() {
 ftrace_off() {
 	echo 0 | sudo tee /sys/kernel/debug/tracing/tracing_enabled
 	echo 0 | sudo tee /sys/kernel/debug/tracing/tracing_on
-
+	echo | sudo tee /sys/kernel/debug/tracing/set_ftrace_pid
 }
 
 uprobes_off() {
