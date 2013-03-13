@@ -247,13 +247,12 @@ remove-spurious-uprobes() {
 	shortname=${2:0:7}
 	newname=$1-r
 	awk -v name=$shortname '{
-		if ( /[0-9]+\)[[:blank:]]+.*\/\*.*\*\/ / ) {
-			split($4, id, "-"); 
+		if (/[0-9]+\)[[:blank:]]+.*\/\*.*\(.*\).*\*\//) {
+			split($4, id, "-");
 			if (id[1] == name) {
 				print $0
 			}
-		} 
-		else {
+		} else {
 			print $0
 		}
 	}' $tracefile > $newname
