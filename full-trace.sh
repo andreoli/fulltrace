@@ -463,6 +463,7 @@ if [[ $do_uprobes == 1 ]]; then
 	fi
 
 	file -L $CMDNAME | grep -q "not stripped"; has_static_symtable=$?
+	rm -Rf $TOVISIT $VISITED $SYMBOLS
 	mkdir $TOVISIT $VISITED $SYMBOLS
 
 	dsos=$(find_dsos $CMDNAME)
