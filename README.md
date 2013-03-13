@@ -40,19 +40,22 @@ usage: ./full-trace.sh
 &#9;[-b|--bufsize bufsize\] [-c|--clean] [-d|--debug] [-h|--help]
 &#9;[-o|--output] [-t|--trace] [-u|--uprobes]
 &#9;[-k|--ksubsys subsys1,...] [-i|--i-config]
+&#9;[-s|--save-uprobes file] [-l|--load-uprobes file]
 &#9;-- <command> <arg>...
 
 Full process tracer (userspace, libraries, kernel)
 OPTIONS:
--b|--bufsize&#9;Set the per-cpu buffer size (KB)
--c|--clean&#9;Clean temporary files
--d|--debug&#9;Debug output
--h|--help&#9;This help
--o|--output&#9;Output decoding
--t|--trace&#9;Process tracing
--u|--uprobes&#9;Uprobes creation
--k|--ksubsys&#9;Enable traces for listed subsystems
--i|--i-config&#9;Ignore kernel configuration check
+-b|--bufsize&#9;&#9;Set the per-cpu buffer size (KB)
+-c|--clean&#9;&#9;Clean temporary files
+-d|--debug&#9;&#9;Debug output
+-h|--help&#9;&#9;This help
+-o|--output&#9;&#9;Output decoding
+-t|--trace&#9;&#9;Process tracing
+-u|--uprobes&#9;&#9;Uprobes creation
+-k|--ksubsys&#9;&#9;Enable traces for listed subsystems
+-i|--i-config&#9;&#9;Ignore kernel configuration check
+-s|--save-uprobes&#9;&#9;Save created uprobes also in the specified file
+-l|--load-uprobes&#9;&#9;Use an alternate file for uprobes
 </pre>
 
 Usage examples
@@ -87,6 +90,12 @@ Use the following command line to **generate and plant uprobes** for a program.
 `$ ./full-trace.sh -u -- <executable_name> [executable_arguments]`  
 This next command line will trace the execution of a program **using an already generated set of userspace probes**.  
 `$ ./full-trace.sh -to -- <executable_name> [executable_arguments]`
+
+To avoid this time-expensive task, the user may also want to save the generated uprobes to a file and afterwards re-load them. This can be obtained by using the `-s` and `-l` options.  
+Use the following command line to **save uprobes to a file**; in this example, the uprobes will be saved to the `saved.uprobes` file. Note that the `-s` option also forces the creation of a new set of uprobes. The `-s` option may also be used in conjunction with other options (this simple example won't specify other actions).  
+`$ ./full-trace.sh -s saved.uprobes -- <executable_name> [executable_arguments]`  
+This next command line will, on the contrary, **load uprobes from a file**. If the specified file does not exist, fulltrace will force the generation of a new uprobes set with a warning, therefore however allowing the user to complete other tasks, if specified; this example shows the usage of the `-l` option (loading uprobes from the `saved.uprobes` file) along with the `-t` (tracing) and `-o` (output decoding) options.  
+`$ ./full-trace.sh -l saved.uprobes -to -- <executable_name> [executable_arguments]`
 
 By default, the total amount of memory assigned to the ftrace subsystem as a tracing buffer is 1/4 of the currently available memory. To change this behavior, the user may use the `-b` option.  
 Use the following command line to **specify the per-CPU tracing buffer** to be assigned to the ftrace subsystem. In this example, a buffer of 1MB will be assigned to each CPU. Note that the value is expressed in KB (1MB = 1024 KB).  
