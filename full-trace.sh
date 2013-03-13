@@ -447,7 +447,12 @@ if [[ "$@" == "" ]]; then
 	exit 0
 fi
 CMD="$@"
-CMDNAME=$(which $1)
+CMDNAME=$(which $1 2> /dev/null)
+if [[ "$CMDNAME" == "" ]]; then
+	echo "fatal: cannot find executable"
+	usage
+	exit 0
+fi
 
 check_uprobes
 if [[ $ignore_config == 0 ]]; then
