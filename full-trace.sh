@@ -329,10 +329,6 @@ add-userspace-functions-duration() {
 	rm $newname
 }
 
-# Filters
-EVENTS_DIR="/sys/kernel/debug/tracing/events"
-SUBSYSTEMS=$(sudo ls -l $EVENTS_DIR | grep "^d" | awk '{ print $9 }')
-
 include_subsystems() {
 	for s in $1; do
 		echo -n "Including subsystem $s "
@@ -403,8 +399,6 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-sudo -v
-
 eval set -- "$options"
 do_uprobes=0
 do_tracing=0
@@ -451,6 +445,8 @@ if [[ "$CMDNAME" == "" ]]; then
 	usage
 	exit 0
 fi
+
+sudo -v
 
 check_uprobes
 if [[ $ignore_config == 0 ]]; then
@@ -533,6 +529,10 @@ if [[ $do_uprobes == 1 ]]; then
 	sort -u $UPROBES > $UPROBES.sortuniq
 	mv $UPROBES.sortuniq $UPROBES
 fi
+
+# Filters
+EVENTS_DIR="/sys/kernel/debug/tracing/events"
+SUBSYSTEMS=$(sudo ls -l $EVENTS_DIR | grep "^d" | awk '{ print $9 }')
 
 if [[ $do_tracing == 1 ]]; then
 	echo "tracing $CMD"
