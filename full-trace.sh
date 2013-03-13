@@ -378,7 +378,7 @@ cat << EOF
 usage: $0 [-b|--bufsize bufsize] [-c|--clean] [-d|--debug] [-h|--help]
           [-o|--output] [-t|--trace] [-u|--uprobes]
           [-k|--ksubsys subsys1,...] [-i|--i-config]
-	  [-s|--save-uprobes file]
+	  [-s|--save-uprobes file] [-l|--load-uprobes file]
           -- <command> <arg>...
 
 Full process tracer (userspace, libraries, kernel)
@@ -393,10 +393,11 @@ OPTIONS:
 -k|--ksubsys		Enable traces for listed subsystems
 -i|--i-config		Ignore kernel configuration check
 -s|--save-uprobes	Save created uprobes also in the specified file
+-l|--load-uprobes	Use an alternate file for uprobes
 EOF
 }
 
-options=$(getopt -o cdb:hotuk:is: -l "clean,debug,bufsize:,help,output,tracing,uprobes,ksubsys:,i-config,save-uprobes:" -n "full-trace.sh" -- "$@")
+options=$(getopt -o cdb:hotuk:is:l: -l "clean,debug,bufsize:,help,output,tracing,uprobes,ksubsys:,i-config,save-uprobes:,load-uprobes:" -n "full-trace.sh" -- "$@")
 if [ $? -ne 0 ]; then
 	exit 1
 fi
@@ -419,6 +420,7 @@ while true; do
 		-k|--ksubsys) ALLOWED_SUBSYS=$2; shift ;;
 		-i|--i-config) ignore_config=1 ;;
 		-s|--save-uprobes) do_uprobes=1; UPROBES_OUT=$2; shift ;;
+		-l|--load-uprobes) UPROBES_IN=$2; shift ;;
 		(--) shift; break;;
 	esac
 	shift
@@ -457,6 +459,17 @@ fi
 check_uprobes
 if [[ $ignore_config == 0 ]]; then
 	check_config
+fi
+
+if [[ "$UPROBES_IN" != "" ]]; then
+	if [[ -f "$UPROBES_IN" ]]; then
+		cp $UPROBES_IN $UPROBES
+		do_uprobes=0
+	else
+		echo "WARN: file $UPROBES_IN doesn't exist"
+		echo "Forcing uprobes generation"
+		do_uprobes=1
+	fi
 fi
 
 if [[ $do_uprobes == 1 ]]; then
