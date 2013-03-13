@@ -378,23 +378,25 @@ cat << EOF
 usage: $0 [-b|--bufsize bufsize] [-c|--clean] [-d|--debug] [-h|--help]
           [-o|--output] [-t|--trace] [-u|--uprobes]
           [-k|--ksubsys subsys1,...] [-i|--i-config]
+	  [-s|--save-uprobes file]
           -- <command> <arg>...
 
 Full process tracer (userspace, libraries, kernel)
 OPTIONS:
--b|--bufsize	Set the per-cpu buffer size (KB)
--c|--clean	Clean temporary files
--d|--debug	Debug output
--h|--help	This help
--o|--output	Output decoding
--t|--trace	Process tracing
--u|--uprobes	Uprobes creation
--k|--ksubsys    Enable traces for listed subsystems
--i|--i-config	Ignore kernel configuration check
+-b|--bufsize		Set the per-cpu buffer size (KB)
+-c|--clean		Clean temporary files
+-d|--debug		Debug output
+-h|--help		This help
+-o|--output		Output decoding
+-t|--trace		Process tracing
+-u|--uprobes		Uprobes creation
+-k|--ksubsys		Enable traces for listed subsystems
+-i|--i-config		Ignore kernel configuration check
+-s|--save-uprobes	Save created uprobes also in the specified file
 EOF
 }
 
-options=$(getopt -o cdb:hotuk:i -l "clean,debug,bufsize:,help,output,tracing,uprobes,ksubsys:,i-config" -n "full-trace.sh" -- "$@")
+options=$(getopt -o cdb:hotuk:is: -l "clean,debug,bufsize:,help,output,tracing,uprobes,ksubsys:,i-config,save-uprobes:" -n "full-trace.sh" -- "$@")
 if [ $? -ne 0 ]; then
 	exit 1
 fi
@@ -416,6 +418,7 @@ while true; do
 		-u|--uprobes) do_uprobes=1 ;;
 		-k|--ksubsys) ALLOWED_SUBSYS=$2; shift ;;
 		-i|--i-config) ignore_config=1 ;;
+		-s|--save-uprobes) do_uprobes=1; UPROBES_OUT=$2; shift ;;
 		(--) shift; break;;
 	esac
 	shift
@@ -537,6 +540,10 @@ fi
 # Filters
 EVENTS_DIR="/sys/kernel/debug/tracing/events"
 SUBSYSTEMS=$(sudo ls -l $EVENTS_DIR | grep "^d" | awk '{ print $9 }')
+
+if [[ "$UPROBES_OUT" != "" ]]; then
+	cp $UPROBES $UPROBES_OUT
+fi
 
 if [[ $do_tracing == 1 ]]; then
 	echo "tracing $CMD"
