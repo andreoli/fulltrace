@@ -290,13 +290,13 @@ add-userspace-functions-duration() {
 	tracefile=$1
 	newname=$1-t
 	awk -F: '{
-		if ( /\/\*.*:.*:enter.*\*\/ / ) {
+		if ( /\/\*.*:.*:enter.*\*\// ) {
 			split($0, line, " "); 
 			split(line[4], id, "-"); 
 			level[$2":"id[2]]++; 
 			entry[$2":"id[2]":"level[$2":"id[2]]] = line[1];
 		} 
-		if ( /\/\*.*:.*:exit.*\*\/ / ) {
+		if ( /\/\*.*:.*:exit.*\*\// ) {
 			split($0, line, " "); 
 			split(line[4], id, "-"); 
 			if (level[$2":"id[2]]) {
