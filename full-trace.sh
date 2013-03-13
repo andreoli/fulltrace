@@ -161,9 +161,7 @@ ftrace_on() {
 	echo funcgraph-abstime | sudo tee /sys/kernel/debug/tracing/trace_options
 	echo funcgraph-proc | sudo tee /sys/kernel/debug/tracing/trace_options
 	echo $1 | sudo tee /sys/kernel/debug/tracing/buffer_size_kb
-	echo 1 | sudo tee /sys/kernel/debug/tracing/tracing_on
 	echo | sudo tee /sys/kernel/debug/tracing/set_ftrace_pid
-	echo 1 | sudo tee /sys/kernel/debug/tracing/tracing_enabled
 }
 
 ftrace_off() {

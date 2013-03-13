@@ -64,7 +64,7 @@ int main (int argc, char **argv)
 		exit(-1);
 
 	if (fork() > 0) {
-		int fd_pid;
+		int fd_pid, fd_enabled, fd_on;
 		char pid[64];
 		size_t s;
 		ssize_t ret;
@@ -77,6 +77,20 @@ int main (int argc, char **argv)
 			die(fd_pid, 1);
 		}
 		close(fd_pid);
+		fd_enabled = open(tracing_file("tracing_enabled"), O_WRONLY);
+		ret = write(fd_enabled, (void *)"1", 1);
+		if (ret == -1) {
+			perror("write fd_enabled");
+			die(fd_enabled, 1);
+		}
+		close(fd_enabled);
+		fd_on = open(tracing_file("tracing_on"), O_WRONLY);
+		ret = write(fd_on, (void *)"1", 1);
+		if (ret == -1) {
+			perror("write fd_on");
+			die(fd_on, 1);
+		}
+		close(fd_on);
 
 		execvp(argv[1], argv+1);
 	}
