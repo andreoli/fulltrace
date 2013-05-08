@@ -1,3 +1,10 @@
+/*
+ * Enable tracing of the selected program.
+ * Arguments: argv[1] = kernel release
+ *            argv[2] = the program which will be traced
+ *            others: program's argument
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
