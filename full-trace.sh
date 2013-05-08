@@ -165,7 +165,9 @@ ftrace_on() {
 }
 
 ftrace_off() {
-	echo 0 | sudo tee /sys/kernel/debug/tracing/tracing_enabled
+	if [ $KER_VER -le "37" ] ; then
+		echo 0 | sudo tee /sys/kernel/debug/tracing/tracing_enabled
+	fi
 	echo 0 | sudo tee /sys/kernel/debug/tracing/tracing_on
 	echo | sudo tee /sys/kernel/debug/tracing/set_ftrace_pid
 }
@@ -184,7 +186,7 @@ ftrace_reset() {
 }
 
 trace_process() {
-	sudo ./wrapper $1
+	sudo ./wrapper $KER_VER $1
 }
 
 write_trace() {
@@ -358,6 +360,7 @@ handle_subsystems() {
 	fi
 }
 
+KER_VER=$(uname -r | awk -F- '{print $1}' | awk -F. '{print $1$2}')
 SHELL=bash
 BASHARG=
 TMP="/tmp"

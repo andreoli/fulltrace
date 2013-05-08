@@ -60,7 +60,7 @@ void die (int fd, int exit_val)
 
 int main (int argc, char **argv)
 {
-	if (argc < 2)
+	if (argc < 3)
 		exit(-1);
 
 	if (fork() > 0) {
@@ -77,13 +77,16 @@ int main (int argc, char **argv)
 			die(fd_pid, 1);
 		}
 		close(fd_pid);
-		fd_enabled = open(tracing_file("tracing_enabled"), O_WRONLY);
-		ret = write(fd_enabled, (void *)"1", 1);
-		if (ret == -1) {
-			perror("write fd_enabled");
-			die(fd_enabled, 1);
+
+		if(atoi(argv[1]) < 37) {
+			fd_enabled = open(tracing_file("tracing_enabled"), O_WRONLY);
+			ret = write(fd_enabled, (void *)"1", 1);
+			if (ret == -1) {
+				perror("write fd_enabled");
+				die(fd_enabled, 1);
+			}
+			close(fd_enabled);
 		}
-		close(fd_enabled);
 		fd_on = open(tracing_file("tracing_on"), O_WRONLY);
 		ret = write(fd_on, (void *)"1", 1);
 		if (ret == -1) {
@@ -92,7 +95,7 @@ int main (int argc, char **argv)
 		}
 		close(fd_on);
 
-		execvp(argv[1], argv+1);
+		execvp(argv[2], argv+2);
 	}
 
 	return 0;
